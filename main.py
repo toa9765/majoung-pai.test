@@ -1,4 +1,3 @@
-pip install matplotlib pillow
 import os
 import random
 from PIL import Image

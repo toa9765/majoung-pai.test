@@ -36,45 +36,57 @@ quiz_data = [
 ]
 
 # 初回実行時にセッション状態を初期化
-if "selected_questions" not in st.session_state:
-    st.session_state.selected_questions = random.sample(quiz_data, 5)  # ランダムに5問を選択
+if "current_question" not in st.session_state:
+    st.session_state.current_question = 0  # 現在の質問インデックス
     st.session_state.score = 0  # スコアの初期化
-    st.session_state.answered = [False for _ in st.session_state.selected_questions]  # 各問題の回答状態を初期化
+    st.session_state.selected_questions = random.sample(quiz_data, 5)  # ランダムに5問を選択
+    st.session_state.answers = []  # ユーザーの回答記録
 
-# 現在のスコア
+# タイトル
 st.title("麻雀牌クイズアプリ")
-score = st.session_state.score
+
+# 進捗バー
+total_questions = len(st.session_state.selected_questions)
+current_question = st.session_state.current_question
+st.progress((current_question / total_questions))
 
 # クイズを表示
-for i, data in enumerate(st.session_state.selected_questions, start=1):
-    st.subheader(f"問題 {i}: {data['question']}")
+if current_question < total_questions:
+    question_data = st.session_state.selected_questions[current_question]
+    st.subheader(f"問題 {current_question + 1}: {question_data['question']}")
 
-    # 画像をローカルから読み込む
+    # 画像を表示
     try:
-        img = Image.open(data["image"])
+        img = Image.open(question_data["image"])
         st.image(img, caption="麻雀牌", use_container_width=True)
     except FileNotFoundError:
-        st.error(f"画像が見つかりません: {data['image']}")
-        continue
+        st.error(f"画像が見つかりません: {question_data['image']}")
 
     # ユーザーの回答を入力
-    user_answer = st.text_input(f"回答を入力してください（問題 {i}）", key=f"q{i}")
+    user_answer = st.text_input("回答を入力してください：", key=f"answer_{current_question}")
 
-    # 正誤判定
-    if not st.session_state.answered[i - 1]:  # まだ回答していない場合のみボタンを表示
-        if st.button(f"問題 {i} の回答を確認", key=f"check{i}"):
-            if user_answer.strip() == data["answer"]:
-                st.success("正解です！")
-                st.session_state.score += 1  # スコアを更新
-            else:
-                st.error(f"残念、不正解です。正解は「{data['answer']}」です。")
-            st.session_state.answered[i - 1] = True  # 回答済みに設定
-    else:
-        st.info("この問題はすでに回答済みです。")
+    # 次へ進むボタン
+    if st.button("次へ進む"):
+        st.session_state.answers.append(user_answer.strip())  # 回答を保存
+        if user_answer.strip() == question_data["answer"]:
+            st.session_state.score += 1
+        st.session_state.current_question += 1  # 次の質問へ
+else:
+    # クイズ終了画面
+    st.subheader("クイズ終了！")
+    st.write(f"あなたのスコアは {st.session_state.score}/{total_questions} です！")
 
-# 最終スコアを表示
-if all(st.session_state.answered):  # 全問題が回答済みか確認
-    st.write(f"あなたのスコアは {st.session_state.score}/{len(st.session_state.selected_questions)} です！")
+    # スコアの詳細表示
+    for i, question_data in enumerate(st.session_state.selected_questions):
+        correct = "✅" if st.session_state.answers[i] == question_data["answer"] else "❌"
+        st.write(f"問題 {i + 1}: {question_data['question']} ({correct})")
+        st.write(f"あなたの回答: {st.session_state.answers[i]}")
+        st.write(f"正解: {question_data['answer']}")
+        st.write("---")
 
-# クイズを開始
-start_quiz()
+    # リスタートボタン
+    if st.button("もう一度プレイ"):
+        del st.session_state.current_question
+        del st.session_state.score
+        del st.session_state.selected_questions
+        del st.session_state.answers
